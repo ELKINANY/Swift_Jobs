@@ -21,7 +21,7 @@ if (!isset($_GET['user_id'])) {
 $user_id = intval($_GET['user_id']);
 
 // جلب بيانات المتقدم
-$stmt = $conn->prepare("SELECT name, email FROM users WHERE user_id = ?");
+$stmt = $conn->prepare("SELECT name, email, phone FROM users WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $applicant = $stmt->get_result()->fetch_assoc();
@@ -30,24 +30,20 @@ if (!$applicant) {
     die("المتقدم غير موجود.");
 }
 
-$success_message = "";
-$error_message = "";
+$whatsapp_url = '';
 
 // معالجة الإرسال عند النقر على زر الإرسال
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $subject = trim($_POST['subject']);
     $message = trim($_POST['message']);
-    $to_email = $applicant['email'];
-    $headers = "From: " . (isset($_SESSION['email']) ? $_SESSION['email'] : "") . "\r\n" . "Reply-To: " . (isset($_SESSION['email']) ? $_SESSION['email'] : "") . "\r\n" . "Content-Type: text/html; charset=UTF-8";
-
-    if (empty($subject) || empty($message)) {
-        $error_message = "يجب ملء جميع الحقول.";
-    } else {
-        if (mail($to_email, $subject, $message, $headers)) {
-            $success_message = "تم إرسال الرسالة بنجاح!";
-        } else {
-            $error_message = "فشل إرسال البريد الإلكتروني.";
-        }
+    
+    // تأكد من أن الحقول ليست فارغة
+    if (!empty($subject) && !empty($message)) {
+        // إنشاء رابط WhatsApp مع الموضوع والنص المدخل
+        $whatsapp_url = "https://api.whatsapp.com/send?phone=20" . htmlspecialchars($applicant['phone']);
+        $whatsapp_url .= "&text=" . urlencode("موضوع: " . $subject);
+        $whatsapp_url .= "%0A" . "نص الرسالة: " . $message;
+        $whatsapp_url .= "%0A" . "رقم الهاتف: " . htmlspecialchars($applicant['phone']);
     }
 }
 ?>
@@ -57,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إرسال رسالة</title>
+    <title>التواصل مع المتقدم</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <style>
@@ -78,7 +74,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
         <a href="company_dashboard.php"><i class="fas fa-th-large"></i> الرئيسية</a>
         <a href="add_job.php"><i class="fas fa-plus-circle"></i> إضافة وظيفة</a>
         <a href="view_jobs.php"><i class="fas fa-briefcase"></i> إدارة الوظائف</a>
-       
         <a href="edit_profile.php"><i class="fas fa-user-edit"></i> تعديل الحساب</a>
         <a href="logout.php" class="text-danger"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
     </div>
@@ -86,15 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
     <!-- المحتوى الرئيسي -->
     <div class="content">
         <div class="container mt-5">
-            <h1 class="text-center mb-4">إرسال رسالة إلى المتقدم</h1>
-
-            <?php if (!empty($success_message)): ?>
-                <div class="alert alert-success"><?= $success_message; ?></div>
-            <?php endif; ?>
-
-            <?php if (!empty($error_message)): ?>
-                <div class="alert alert-danger"><?= $error_message; ?></div>
-            <?php endif; ?>
+            <h1 class="text-center mb-4">التواصل مع المتقدم</h1>
 
             <form method="POST">
                 <div class="mb-3">
@@ -108,6 +95,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
                 </div>
 
                 <div class="mb-3">
+                    <label class="form-label">رقم الهاتف:</label>
+                    <input type="text" class="form-control" value="<?= htmlspecialchars($applicant['phone']); ?>" disabled>
+                </div>
+
+                <div class="mb-3">
                     <label class="form-label">موضوع الرسالة:</label>
                     <input type="text" name="subject" class="form-control" required>
                 </div>
@@ -117,8 +109,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
                     <textarea name="message" class="form-control" rows="5" required></textarea>
                 </div>
 
-                <button type="submit" name="send_message" class="btn btn-primary">إرسال</button>
+                <button type="submit" class="btn btn-primary">إرسال</button>
             </form>
+
+            <?php if ($whatsapp_url): ?>
+                <div class="mt-4">
+                    <a href="<?= $whatsapp_url ?>" class="btn btn-success btn-sm" target="_blank">
+                        <i class="fab fa-whatsapp"></i> إرسال عبر واتساب
+                    </a>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

@@ -7,11 +7,20 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'company') {
 }
 
 if (!isset($_SESSION['email'])) {
-    header('Location:../ login.php');
+    header('Location:../login.php');
     exit();
 }
 
 require '../db_connection.php';
+
+// تضمين مكتبة PHPMailer
+require 'PHPMailer/src/Exception.php';
+require 'PHPMailer/src/PHPMailer.php';
+require 'PHPMailer/src/SMTP.php';
+
+// استخدام الفئات مع الأسماء المكانية
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 // التحقق من وجود user_id في الرابط
 if (!isset($_GET['user_id'])) {
@@ -38,19 +47,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
     $subject = trim($_POST['subject']);
     $message = trim($_POST['message']);
     $to_email = $applicant['email'];
-    $headers = "From: " . (isset($_SESSION['email']) ? $_SESSION['email'] : "") . "\r\n" . "Reply-To: " . (isset($_SESSION['email']) ? $_SESSION['email'] : "") . "\r\n" . "Content-Type: text/html; charset=UTF-8";
 
     if (empty($subject) || empty($message)) {
         $error_message = "يجب ملء جميع الحقول.";
     } else {
-        if (mail($to_email, $subject, $message, $headers)) {
-            $success_message = "تم إرسال الرسالة بنجاح!";
-        } else {
-            $error_message = "فشل إرسال البريد الإلكتروني.";
+        // إعدادات PHPMailer
+        $mail = new PHPMailer(true); // استخدام true لتمكين الاستثناءات
+
+        // إعدادات SMTP لـ Mailtrap
+        $mail->isSMTP();
+        $mail->Host = 'sandbox.smtp.mailtrap.io'; // SMTP Mailtrap
+        $mail->SMTPAuth = true;
+        $mail->Username = '6611e8ac20aaa7'; // اسم المستخدم Mailtrap
+        $mail->Password = 'd41e52c6842962'; // كلمة المرور Mailtrap
+        $mail->SMTPSecure = 'tls';
+        $mail->Port = 587;
+
+        // عنوان المرسل يجب أن يكون عنوان Mailtrap
+        $mail->setFrom('smtp@mailtrap.io', 'اسمك هنا'); // عنوان البريد الإلكتروني الخاص بـ Mailtrap
+        $mail->addAddress($to_email, $applicant['name']); // إرسال الرسالة إلى المتقدم
+
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body    = nl2br($message);
+
+        try {
+            if ($mail->send()) {
+                $success_message = "تم إرسال الرسالة بنجاح!";
+            } else {
+                $error_message = "فشل إرسال البريد الإلكتروني.";
+            }
+        } catch (Exception $e) {
+            $error_message = "فشل إرسال البريد الإلكتروني: " . $mail->ErrorInfo;
         }
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="ar">
@@ -78,7 +111,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
         <a href="company_dashboard.php"><i class="fas fa-th-large"></i> الرئيسية</a>
         <a href="add_job.php"><i class="fas fa-plus-circle"></i> إضافة وظيفة</a>
         <a href="view_jobs.php"><i class="fas fa-briefcase"></i> إدارة الوظائف</a>
-       
         <a href="edit_profile.php"><i class="fas fa-user-edit"></i> تعديل الحساب</a>
         <a href="logout.php" class="text-danger"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a>
     </div>

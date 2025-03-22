@@ -29,16 +29,32 @@ if (isset($_GET['order']) && in_array($_GET['order'], ['ASC', 'DESC'])) {
 
 // جلب المتقدمين بناءً على الفلترة
 $stmt = $conn->prepare("
-    SELECT users.user_id, users.name, users.email, users.cv_link, applications.expected_salary
-    FROM applications
-    JOIN users ON applications.user_id = users.user_id
-    JOIN jobs ON applications.job_id = jobs.job_id
-    WHERE applications.job_id = ? AND jobs.company_id = ?
+    SELECT users.user_id, users.name, users.email, users.cv_link, job_applications.expected_salary, job_applications.resume, job_applications.cover_letter, job_applications.why_job, job_applications.why_company, job_applications.applied_at, job_applications.status, job_applications.phone
+    FROM job_applications
+    JOIN users ON job_applications.user_id = users.user_id
+    JOIN jobs ON job_applications.job_id = jobs.job_id
+    WHERE job_applications.job_id = ? AND jobs.company_id = ?
     ORDER BY $order_by $order_dir
 ");
+
 $stmt->bind_param("ii", $job_id, $company_id);
 $stmt->execute();
 $applicants = $stmt->get_result();
+
+// جلب اسم الشركة
+$stmt = $conn->prepare("SELECT name FROM users WHERE user_id = ?");
+$stmt->bind_param("i", $company_id);
+$stmt->execute();
+$company = $stmt->get_result()->fetch_assoc();
+$company_name = $company['name'];
+
+// جلب اسم الوظيفة
+$stmt = $conn->prepare("SELECT title FROM jobs WHERE job_id = ?");
+$stmt->bind_param("i", $job_id);
+$stmt->execute();
+$job = $stmt->get_result()->fetch_assoc();
+$job_title = $job['title'];
+
 ?>
 
 <!DOCTYPE html>
@@ -104,7 +120,14 @@ $applicants = $stmt->get_result();
                         <th>الاسم</th>
                         <th>البريد الإلكتروني</th>
                         <th>السيرة الذاتية</th>
+                      
+                        <th>الخطاب</th>
+                        <th>ما الذي جعلتك تقدم علي هذه الوظيفة؟</th>
+                        <th>ما الذي جعلتك تريد ان تعمل في هذه الشركة؟</th>
+                        <th>تاريخ التقديم</th>
+                        <th>الحالة</th>
                         <th>الراتب المتوقع</th>
+                        <th>رقم الهاتف</th>
                         <th>الإجراءات</th>
                     </tr>
                 </thead>
@@ -115,18 +138,31 @@ $applicants = $stmt->get_result();
                             <td><?= htmlspecialchars($applicant['email']); ?></td>
                             <td>
                                 <?php if (!empty($applicant['cv_link'])): ?>
-                                    <a href="<?= htmlspecialchars($applicant['cv_link']); ?>" target="_blank" class="btn btn-success btn-sm">
+                                    <a href="../<?= htmlspecialchars($applicant['cv_link']); ?>" target="_blank" class="btn btn-success btn-sm">
                                         <i class="fas fa-file-pdf"></i> عرض
                                     </a>
                                 <?php else: ?>
                                     <span class="text-muted">غير متوفر</span>
                                 <?php endif; ?>
                             </td>
+                            <td><?= htmlspecialchars($applicant['cover_letter']); ?></td>
+                            <td><?= htmlspecialchars($applicant['why_job']); ?></td>
+                            <td><?= htmlspecialchars($applicant['why_company']); ?></td>
+                            <td><?= htmlspecialchars($applicant['applied_at']); ?></td>
+                            <td><?= htmlspecialchars($applicant['status']); ?></td>
                             <td><?= number_format($applicant['expected_salary'], 2); ?> جنيه</td>
+                            <td><?= htmlspecialchars($applicant['phone']); ?></td>
                             <td>
-                                <a href="contact_applicant.php?user_id=<?= $applicant['user_id']; ?>" class="btn btn-primary btn-sm">
+                                <a href="PHPMailer.php?user_id=<?= $applicant['user_id']; ?>" class="btn btn-primary btn-sm">
                                     <i class="fas fa-envelope"></i> تواصل
                                 </a>
+                                <!-- <a href="https://api.whatsapp.com/send?phone=20<?= htmlspecialchars($applicant['phone']); ?>&text=مرحبا%2C%20نحن%20سعداء%20بقبول%20طلب%20الوظيفة%20<?= htmlspecialchars($job_title); ?>%20في%20الشركة%20<?= htmlspecialchars($company_name); ?>" class="btn btn-success btn-sm">
+                                    <i class="fab fa-whatsapp"></i> واتساب
+                                </a> -->
+                                <a href="whatup.php?user_id=<?= $applicant['user_id']; ?>" class="btn btn-success btn-sm">
+                                    <i class="fab fa-whatsapp"></i> واتساب
+                                </a>
+
                             </td>
                         </tr>
                     <?php endwhile; ?>
