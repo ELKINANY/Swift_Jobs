@@ -6,10 +6,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'company') {
     exit();
 }
 
-if (!isset($_SESSION['email'])) {
-    header('Location:../ login.php');
-    exit();
-}
+// if (!isset($_SESSION['email'])) {
+//     header('Location:../ login.php');
+//     exit();
+// }
 
 require '../db_connection.php';
 
